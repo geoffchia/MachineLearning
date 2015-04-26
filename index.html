@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="UTF-8">
+    <title>Machinelearning by geoffchia</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" href="stylesheets/normalize.css" media="screen">
+    <link href='http://fonts.googleapis.com/css?family=Open+Sans:400,700' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="stylesheets/github-light.css" media="screen">
+  </head>
+  <body>
+    <section class="page-header">
+      <h1 class="project-name">Machinelearning</h1>
+      <h2 class="project-tagline">Coursera Machine Learning Project</h2>
+      <a href="https://github.com/geoffchia/MachineLearning" class="btn">View on GitHub</a>
+      <a href="https://github.com/geoffchia/MachineLearning/zipball/master" class="btn">Download .zip</a>
+      <a href="https://github.com/geoffchia/MachineLearning/tarball/master" class="btn">Download .tar.gz</a>
+    </section>
+
+    <section class="main-content">
+      <hr>
+
+<p>title: "Predicting Exercise Manner using Random Forest"
+author: "geoffchia"
+date: "Sunday, April 26, 2015"</p>
+
+<h2>
+<a id="output-html_document" class="anchor" href="#output-html_document" aria-hidden="true"><span class="octicon octicon-link"></span></a>output: html_document</h2>
+
+<h3>
+<a id="objective" class="anchor" href="#objective" aria-hidden="true"><span class="octicon octicon-link"></span></a>Objective</h3>
+
+<p>The objective of this project is to build a predictive model using machine learning method to correctly predict how people perform their exercises by classifying them into one of the 5 categories: A, B, C, D and E.</p>
+
+<h3>
+<a id="data" class="anchor" href="#data" aria-hidden="true"><span class="octicon octicon-link"></span></a>Data</h3>
+
+<p>The training data for this project are provided and can be found here:
+<a href="https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv">https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv</a></p>
+
+<p>The test data are also made available:
+<a href="https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv">https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv</a></p>
+
+<h3>
+<a id="data-processing-and-cleaning" class="anchor" href="#data-processing-and-cleaning" aria-hidden="true"><span class="octicon octicon-link"></span></a>Data Processing and Cleaning</h3>
+
+<p>First we download both data files to the local folder: c:/Coursera. We then use R to load the data and to take a quick glance at the data</p>
+
+<div class="highlight highlight-r"><pre>library(<span class="pl-smi">caret</span>); library(<span class="pl-smi">data.table</span>); library(<span class="pl-smi">randomForest</span>)
+setwd(<span class="pl-s"><span class="pl-pds">"</span>C://Coursera<span class="pl-pds">"</span></span>)
+<span class="pl-smi">dat</span> <span class="pl-k">&lt;-</span> read.csv(<span class="pl-s"><span class="pl-pds">"</span>pml-training.csv<span class="pl-pds">"</span></span>, <span class="pl-v">na.strings</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>NA<span class="pl-pds">"</span></span>)
+dim(<span class="pl-smi">dat</span>)</pre></div>
+
+<p>We then get rid of useless columns (e.g. those with a lot of NAs, or blanks), and only retain the predictors which are those with column name containing "belt", "arm" and "dumbbell"</p>
+
+<div class="highlight highlight-r"><pre>
+<span class="pl-c"># get rid of columns with a lot of na values</span>
+<span class="pl-smi">dat</span> <span class="pl-k">&lt;-</span> <span class="pl-smi">dat</span>[colSums(is.na(<span class="pl-smi">dat</span>)) <span class="pl-k">&lt;</span> <span class="pl-c1">1000</span>]
+
+<span class="pl-c"># exclude columns where most values are ""</span>
+<span class="pl-smi">cols</span> <span class="pl-k">&lt;-</span> c()
+<span class="pl-k">for</span> (<span class="pl-smi">cname</span> <span class="pl-k">in</span> colnames(<span class="pl-smi">dat</span>))
+    <span class="pl-k">if</span> (sum(<span class="pl-smi">dat</span>[, <span class="pl-smi">cname</span>] <span class="pl-k">==</span> <span class="pl-s"><span class="pl-pds">"</span><span class="pl-pds">"</span></span>) <span class="pl-k">&lt;</span> <span class="pl-c1">1000</span>) {
+        <span class="pl-smi">cols</span> <span class="pl-k">&lt;-</span> c(<span class="pl-smi">cols</span>, <span class="pl-smi">cname</span>)
+    }
+<span class="pl-smi">dat</span> <span class="pl-k">&lt;-</span> <span class="pl-smi">dat</span>[, <span class="pl-smi">cols</span>]
+
+<span class="pl-c"># only retain columns with names consisting of "belt", "arm", "dumbbell"</span>
+<span class="pl-smi">cols</span> <span class="pl-k">&lt;-</span> grep(<span class="pl-s"><span class="pl-pds">"</span>belt<span class="pl-pds">"</span></span>, colnames(<span class="pl-smi">dat</span>))
+<span class="pl-smi">cols</span> <span class="pl-k">&lt;-</span> c(<span class="pl-smi">cols</span>, grep(<span class="pl-s"><span class="pl-pds">"</span>arm<span class="pl-pds">"</span></span>, colnames(<span class="pl-smi">dat</span>)))
+<span class="pl-smi">cols</span> <span class="pl-k">&lt;-</span> c(<span class="pl-smi">cols</span>, grep(<span class="pl-s"><span class="pl-pds">"</span>dumbbell<span class="pl-pds">"</span></span>, colnames(<span class="pl-smi">dat</span>)))
+
+<span class="pl-c"># add back "classe", which is the last col</span>
+<span class="pl-smi">cols</span> <span class="pl-k">&lt;-</span> c(<span class="pl-smi">cols</span>, dim(<span class="pl-smi">dat</span>)[<span class="pl-c1">2</span>])
+<span class="pl-smi">dat</span> <span class="pl-k">&lt;-</span> <span class="pl-smi">dat</span>[, <span class="pl-smi">cols</span>]
+dim(<span class="pl-smi">dat</span>)</pre></div>
+
+<p>As can be seen, the predictors have been reduced from 160 to 53, a more manageable number for modeling.</p>
+
+<h3>
+<a id="training-and-testing-data" class="anchor" href="#training-and-testing-data" aria-hidden="true"><span class="octicon octicon-link"></span></a>Training and Testing Data</h3>
+
+<p>We then sub-divide the data to 75% training and 25% testing. The purpose is for us to calculate out-of-sample error later.</p>
+
+<div class="highlight highlight-r"><pre><span class="pl-smi">inTrain</span> <span class="pl-k">&lt;-</span> createDataPartition(<span class="pl-smi">dat</span><span class="pl-k">$</span><span class="pl-smi">classe</span>, <span class="pl-v">p</span><span class="pl-k">=</span>.<span class="pl-c1">75</span>, <span class="pl-v">list</span><span class="pl-k">=</span><span class="pl-c1">FALSE</span>)
+<span class="pl-smi">training</span> <span class="pl-k">&lt;-</span> <span class="pl-smi">dat</span>[<span class="pl-smi">inTrain</span>,]
+<span class="pl-smi">testing</span> <span class="pl-k">&lt;-</span> <span class="pl-smi">dat</span>[<span class="pl-k">-</span><span class="pl-smi">inTrain</span>,]</pre></div>
+
+<h3>
+<a id="building-random-forest-model" class="anchor" href="#building-random-forest-model" aria-hidden="true"><span class="octicon octicon-link"></span></a>Building Random Forest Model</h3>
+
+<p>We choose Random Forest model because it is one of the more powerful and commonly used machine learning model. We first use all the default settings. </p>
+
+<pre lang="r,"><code>set.seed(23221)
+rf &lt;- randomForest(classe ~., data=training)
+rf
+</code></pre>
+
+<h3>
+<a id="calculate-out-of-sample-error" class="anchor" href="#calculate-out-of-sample-error" aria-hidden="true"><span class="octicon octicon-link"></span></a>Calculate Out-of-Sample Error</h3>
+
+<p>To assess the performance of the model, we apply it to make prediction on the testing data and work out the out-of-sample error:</p>
+
+<pre lang="r,"><code># make prediction on testing data using our model
+pred &lt;- predict(rf, testing)
+
+# calculate out-of-sample error
+tbl &lt;- table(pred, testing$classe)
+err &lt;- 1 - sum(diag(tbl)) / sum(tbl)
+err
+</code></pre>
+
+<p>The model performs quite well, so there is no need to tweak the parameters further.</p>
+
+<h3>
+<a id="putting-our-model-to-work" class="anchor" href="#putting-our-model-to-work" aria-hidden="true"><span class="octicon octicon-link"></span></a>Putting Our Model to Work</h3>
+
+<p>We now use our model to predict the 20 cases in the test data:</p>
+
+<p>Note: codes omitted to comply with Code of Honour of Coursera.</p>
+
+<h3>
+<a id="conclusion" class="anchor" href="#conclusion" aria-hidden="true"><span class="octicon octicon-link"></span></a>Conclusion</h3>
+
+<p>In this simple exercise, the default random forest model proves to be a fairly suitable model and we do not need to perform other tweaking. In practice, we would normally require to explore various models before deciding on the final one.</p>
+
+      <footer class="site-footer">
+        <span class="site-footer-owner"><a href="https://github.com/geoffchia/MachineLearning">Machinelearning</a> is maintained by <a href="https://github.com/geoffchia">geoffchia</a>.</span>
+
+        <span class="site-footer-credits">This page was generated by <a href="https://pages.github.com">GitHub Pages</a> using the <a href="https://github.com/jasonlong/cayman-theme">Cayman theme</a> by <a href="https://twitter.com/jasonlong">Jason Long</a>.</span>
+      </footer>
+
+    </section>
+
+  
+  </body>
+</html>
+
