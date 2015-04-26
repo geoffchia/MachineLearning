@@ -1,0 +1,95 @@
+---
+title: "Predicting Exercise Manner using Random Forest"
+author: "geoffchia"
+date: "Sunday, April 26, 2015"
+output: html_document
+---
+
+### Objective
+
+The objective of this project is to build a predictive model using machine learning method to correctly predict how people perform their exercises by classifying them into one of the 5 categories: A, B, C, D and E.
+
+### Data
+The training data for this project are provided and can be found here:
+[https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv](https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv)
+
+The test data are also made available:
+[https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv](https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv)
+
+### Data Processing and Cleaning
+First we download both data files to the local folder: c:/Coursera. We then use R to load the data and to take a quick glance at the data
+
+```{r}
+library(caret); library(data.table); library(randomForest)
+setwd("C://Coursera")
+dat <- read.csv("pml-training.csv", na.strings="NA")
+dim(dat)
+```
+
+We then get rid of useless columns (e.g. those with a lot of NAs, or blanks), and only retain the predictors which are those with column name containing "belt", "arm" and "dumbbell"
+
+```{r}
+
+# get rid of columns with a lot of na values
+dat <- dat[colSums(is.na(dat)) < 1000]
+
+# exclude columns where most values are ""
+cols <- c()
+for (cname in colnames(dat))
+    if (sum(dat[, cname] == "") < 1000) {
+        cols <- c(cols, cname)
+    }
+dat <- dat[, cols]
+
+# only retain columns with names consisting of "belt", "arm", "dumbbell"
+cols <- grep("belt", colnames(dat))
+cols <- c(cols, grep("arm", colnames(dat)))
+cols <- c(cols, grep("dumbbell", colnames(dat)))
+
+# add back "classe", which is the last col
+cols <- c(cols, dim(dat)[2])
+dat <- dat[, cols]
+dim(dat)
+```
+
+As can be seen, the predictors have been reduced from 160 to 53, a more manageable number for modeling.
+
+### Training and Testing Data
+We then sub-divide the data to 75% training and 25% testing. The purpose is for us to calculate out-of-sample error later.
+
+```{r}
+inTrain <- createDataPartition(dat$classe, p=.75, list=FALSE)
+training <- dat[inTrain,]
+testing <- dat[-inTrain,]
+```
+
+### Building Random Forest Model
+We choose Random Forest model because it is one of the more powerful and commonly used machine learning model. We first use all the default settings. 
+
+```{r, cache=TRUE}
+set.seed(23221)
+rf <- randomForest(classe ~., data=training)
+rf
+```
+
+### Calculate Out-of-Sample Error
+To assess the performance of the model, we apply it to make prediction on the testing data and work out the out-of-sample error:
+
+```{r, cache=TRUE}
+# make prediction on testing data using our model
+pred <- predict(rf, testing)
+
+# calculate out-of-sample error
+tbl <- table(pred, testing$classe)
+err <- 1 - sum(diag(tbl)) / sum(tbl)
+err
+```
+The model performs quite well, so there is no need to tweak the parameters further.
+
+### Putting Our Model to Work
+We now use our model to predict the 20 cases in the test data:
+
+Note: codes omitted to comply with Code of Honour of Coursera.
+
+### Conclusion
+In this simple exercise, the default random forest model proves to be a fairly suitable model and we do not need to perform other tweaking. In practice, we would normally require to explore various models before deciding on the final one.
